@@ -7,7 +7,6 @@ from collections import defaultdict, Counter
 import numpy as np
 from document_preprocessor import Tokenizer
 from ranker import Ranker, TF_IDF, BM25, PivotedNormalization, CrossEncoderScorer
-from vector_ranker import VectorRanker
 
 
 # TODO: scorer has been replaced with ranker in initialization, check README for more details
@@ -118,8 +117,6 @@ class L2RRanker:
 
         Args:
             training_data_filename (str): a filename for a jsonl file containing documents and relevance scores
-            evaluation_data_filename (str, optional): a filename for a jsonl file containing documents and relevance scores
-                Defaults to None.
         """
         # TODO: Convert the relevance data into the right format for training data preparation
         query_to_document_relevance_scores = self.extract_data_helper(training_data_filename)
@@ -150,82 +147,25 @@ class L2RRanker:
         Raises:
             ValueError: If the model has not been trained yet.
         """
-        # TODO: Return a prediction made using the LambdaMART model
         if self.model is None:
             raise ValueError("Model has not been trained yet.")
         # TODO: Return a prediction made using the LambdaMART model
         return self.model.predict(X)
-
-    # TODO (HW5): Implement MMR diversification for a given list of documents and their cosine similarity scores
-    @staticmethod
-    def maximize_mmr(thresholded_search_results: list[tuple[int, float]], similarity_matrix: np.ndarray,
-                     list_docs: list[int], mmr_lambda: int) -> list[tuple[int, float]]:
-        """
-        Takes the thresholded list of results and runs the maximum marginal relevance diversification algorithm
-        on the list.
-        It should return a list of the same length with the same overall documents but with different document ranks.
-        
-        Args:
-            thresholded_search_results: The thresholded search results
-            similarity_matrix: Precomputed similarity scores for all the thresholded search results
-            list_docs: The list of documents following the indexes of the similarity matrix
-                       If document 421 is at the 5th index (row, column) of the similarity matrix,
-                       it should be on the 5th index of list_docs.
-            mmr_lambda: The hyperparameter lambda used to measure the MMR scores of each document
-
-        Returns:
-            A list containing tuples of the ranked documents and their scores
-        """
-        # NOTE: This algorithm implementation requires some amount of planning as you need to maximize
-        #       the MMR at every step.
-        #       1. Create an empty list S
-        #       2. Find the element with the maximum MMR in thresholded_search_results, R (but not in S)
-        #       3. Move that element from R and append it to S
-        #       4. Repeat 2 & 3 until there are no more remaining elements in R to be processed
-
-        S = []
-        S_idx = []
-        relevance = np.array([x[1] for x in thresholded_search_results])
-        thresholded_docids = [x[0] for x in thresholded_search_results]
-        doc_pos = [list_docs.index(docid) for docid in thresholded_docids]
-        if any(np.array(doc_pos) == -1):
-            raise ValueError("Document not found in list_docs")
-        similarity_matrix = similarity_matrix[doc_pos][:, doc_pos]
-        origin_idx = np.arange(similarity_matrix.shape[0])
-        mask = np.ones(similarity_matrix.shape[0], dtype=bool)
-
-        while np.sum(mask) != 0:
-            mmr_matrix = mmr_lambda * relevance[mask]
-            if len(S_idx) > 0:
-                sim_matrix = similarity_matrix[mask][:, S_idx]
-                sim_matrix = np.max(sim_matrix, axis=1)
-                mmr_matrix -= (1 - mmr_lambda) * sim_matrix
-            mmr_idx = np.argmax(mmr_matrix)
-            mmr_val = np.max(mmr_matrix)
-            result_id = origin_idx[mask][mmr_idx]
-            doc_id, score = thresholded_search_results[result_id]
-            S.append((doc_id, mmr_val))
-            mask[result_id] = False
-            S_idx.append(result_id)
-        return S
     
-    def query(self, query: str, pseudofeedback_num_docs=0, pseudofeedback_alpha=0.8,
-              pseudofeedback_beta=0.2, user_id=None, mmr_lambda:int=1, mmr_threshold:int=100) -> list[tuple[int, float]]:
+    def relevant_doc_filter(self, query_parts: list[str]) -> set[int]:
+        relevant_docs = set()
+        for token in set(query_parts):
+            docids = [doc_info[0] for doc_info in self.document_index.get_postings(token)]
+            relevant_docs.update(set(docids))
+        return relevant_docs
+
+    def query(self, query: str, **kwargs) -> list[tuple[int, float]]:
         """
         Retrieves potentially-relevant documents, constructs feature vectors for each query-document pair,
         uses the L2R model to rank these documents, and returns the ranked documents.
 
         Args:
             query: A string representing the query to be used for ranking
-            pseudofeedback_num_docs: If pseudo-feedback is requested, the number of top-ranked documents
-                to be used in the query
-            pseudofeedback_alpha: If pseudo-feedback is used, the alpha parameter for weighting
-                how much to include of the original query in the updated query
-            pseudofeedback_beta: If pseudo-feedback is used, the beta parameter for weighting
-                how much to include of the relevant documents in the updated query
-            user_id: the integer id of the user who is issuing the query or None if the user is unknown
-            mmr_lambda: Hyperparameter for MMR diversification scoring
-            mmr_threshold: Documents to rerank using MMR diversification
 
         Returns:
             A list containing tuples of the ranked documents and their scores, sorted by score in descending order
@@ -235,7 +175,8 @@ class L2RRanker:
         query_parts = self.document_preprocessor.tokenize(query)
         if len(query_parts) == 0:
             return []
-        
+
+        # relevant_docs = self.relevant_doc_filter(query_parts)
         # TODO: Fetch a list of possible documents from the index and create a mapping from
         #       a document ID to a dictionary of the counts of the query terms in that document.
         #       You will pass the dictionary to the RelevanceScorer as input
@@ -249,9 +190,9 @@ class L2RRanker:
 
         # TODO: Score and sort the documents by the provided scorer for just the document's main text (not the title).
         #       This ordering determines which documents we will try to *re-rank* using our L2R model
-        naive_ranked_docs = self.ranker.query(query, pseudofeedback_num_docs, pseudofeedback_alpha, pseudofeedback_beta)
-        naive_ranked_docs = [(docid, score) for docid, score in naive_ranked_docs if docid in doc_term_counts]
+        naive_ranked_docs = self.ranker.query(query, **kwargs)
 
+        naive_ranked_docs = [(docid, score) for docid, score in naive_ranked_docs if docid in doc_term_counts]
         # TODO: Filter to just the top 100 documents for the L2R part for re-ranking
         possible_docs = [docid for docid, _ in naive_ranked_docs[:100]]
 
@@ -270,24 +211,6 @@ class L2RRanker:
             ranked_docids = [(docid, -score) for score, docid in sorted(zip(map(lambda x: -x, preds), docids))]
             # TODO: Make sure to add back the other non-top-100 documents that weren't re-ranked        
             naive_ranked_docs = ranked_docids + naive_ranked_docs[100:]
-
-        if mmr_lambda != 1 and len(naive_ranked_docs) > 0 and isinstance(self.ranker, VectorRanker):
-            # TODO (HW5): Run MMR diversification for appropriate values of lambda
-            
-            # TODO (HW5): Get the threholded part of the search results, aka top t results and
-            #      keep the rest separate
-            thresholded_search_results = naive_ranked_docs[:mmr_threshold]
-
-            # TODO (HW5): Get the document similarity matrix for the thresholded documents using vector_ranker
-            #      Preserve the input list of documents to be used in the MMR function
-            list_docs = [x[0] for x in thresholded_search_results]
-            similarity_matrix = self.ranker.document_similarity(list_docs)
-
-            # TODO (HW5): Run the maximize_mmr function with appropriate arguments
-            reranked_threshold_docs = self.maximize_mmr(thresholded_search_results, similarity_matrix, list_docs, mmr_lambda)
-            print("Sim min: {}, mean: {}, max: {}".format(np.min(similarity_matrix), np.mean(similarity_matrix), np.max(similarity_matrix)))
-            # TODO (HW5): Add the remaining search results back to the MMR diversification results
-            naive_ranked_docs = reranked_threshold_docs + naive_ranked_docs[mmr_threshold:]
         # TODO: Return the ranked documents
         return naive_ranked_docs
 
