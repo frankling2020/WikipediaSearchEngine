@@ -2,7 +2,7 @@ import numpy as np
 from sknetwork.ranking import PageRank, HITS
 import pandas as pd
 from pandas import DataFrame
-from tqdm import tqdm
+from tqdm.auto import tqdm
 from sknetwork.data import from_edge_list
 import gzip
 
@@ -13,8 +13,8 @@ class NetworkFeatures:
     This class uses the scikit-network library https://scikit-network.readthedocs.io to calculate node ranking values.
 
     OPTIONAL reads
-    1. PageRank: https://towardsdatascience.com/pagerank-algorithm-fully-explained-dc794184b4af
-    2. HITS: https://pi.math.cornell.edu/~mec/Winter2009/RalucaRemus/Lecture4/lecture4.html 
+        1. PageRank: https://towardsdatascience.com/pagerank-algorithm-fully-explained-dc794184b4af
+        2. HITS: https://pi.math.cornell.edu/~mec/Winter2009/RalucaRemus/Lecture4/lecture4.html
     """
     def load_network(self, network_filename: str, total_edges: int):
         """
@@ -28,8 +28,6 @@ class NetworkFeatures:
         Returns:
             The loaded network from sknetwork
         """
-        # TODO load the network edgelist dataset and return the scikit-network graph
-
         # NOTE: there are 92650947 edges in the big network we give you. However,
         # do not hard code this value here, as it will cause the auto-grader tests
         # to break
@@ -40,9 +38,7 @@ class NetworkFeatures:
         # "hard part" of this class's implementation as it requires you to think about
         # memory and data representations. 
 
-
         # NOTE: your code should support reading both gzip and non-gzip formats
-
 
         # NOTE: On a reference laptop, loading the network file's data took ~90 seconds
         # and constructing the network took ~75 seconds. We estimate that the entire 
@@ -57,9 +53,8 @@ class NetworkFeatures:
                 edge_lists.append(edge)
         graph = from_edge_list(edge_lists, directed=True)
         return graph
-
         
-    def calculate_page_rank(self, graph, damping_factor=0.85, iterations=100) -> list[float]:
+    def calculate_page_rank(self, graph, damping_factor=0.85, iterations=100, weights=None) -> list[float]:
         """
         Calculates the PageRank scores for the provided network and
         returns the PageRank values for all nodes.
@@ -69,13 +64,18 @@ class NetworkFeatures:
             damping_factor: The complement of the teleport probability for the random walker
                 For example, a damping factor of .8 has a .2 probability of jumping after each step.
             iterations: The maximum number of iterations to run when computing PageRank
+            weights: if Personalized PageRank is used, a data structure containing the restart distribution
+                     as a vector (over the length of nodes) or a dict {node: weight}
 
         Returns:
             The PageRank scores for all nodes in the network (array-like)
+        
+        TODO (hw4): Note that `weights` is added as a parameter to this function for Personalized PageRank.
         """
-        # TODO Use scikit-network to run Pagerank and return Pagerank scores
+        # TODO (HW4): Use scikit-network to calculate and return PageRank scores; if the user has indicated
+        #  we should use Personalized PageRank, return the scores using the given weights
         pagerank = PageRank(damping_factor=damping_factor, n_iter=iterations)
-        scores = pagerank.fit_transform(graph.adjacency)
+        scores = pagerank.fit_transform(graph.adjacency, weights=weights)
         return scores
 
     def calculate_hits(self, graph) -> tuple[list[float], list[float]]:
@@ -133,15 +133,7 @@ class NetworkFeatures:
 
 # Example main function
 if __name__ == '__main__':
-    from time import time
     nf = NetworkFeatures()
-    t1 = time()
     g = nf.load_network('edgelist.csv.gz', 92650947)
-    t2 = time()
-    print("Loading network took", t2 - t1, "seconds")
     final_df = nf.get_all_network_statistics(g)
-    t3 = time()
-    print("Calculating network statistics took", t3 - t2, "seconds")
-    final_df.to_csv('network_stats.csv')
-    t4 = time()
-    print("Saving network statistics took", t4 - t3, "seconds")
+    final_df.to_csv('network_stats.csv', index=False)

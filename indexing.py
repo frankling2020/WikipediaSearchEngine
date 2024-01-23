@@ -142,12 +142,12 @@ class InvertedIndex:
     def save_json_func(self, data, f):
         if isinstance(data, dict):
             data = {str(k): v for k, v in data.items()}
-        f.write(orjson.dumps(data).decode('utf-8'))
-        # json.dump(data, f)
+        # f.write(orjson.dumps(data).decode('utf-8'))
+        json.dump(data, f)
 
     def load_json_func(self, f):
-        return orjson.loads(f.read())
-        # return json.load(f)
+        # return orjson.loads(f.read())
+        return json.load(f)
 
     def calculate_stats(self, doc_inc: int, token_inc: int) -> None:
         # TO-DO: not use self.index

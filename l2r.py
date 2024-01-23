@@ -125,15 +125,11 @@ class L2RRanker:
         X, y, qgroups = self.prepare_training_data(query_to_document_relevance_scores)
         kwargs = {}
         ## DEBUG
-        # if evaluation_data_filename is not None:
-        #     eval_query_to_document_relevance_scores = self.extract_data_helper(evaluation_data_filename)
-        #     X_eval, y_eval, qgroups_eval = self.prepare_training_data(eval_query_to_document_relevance_scores)
-        #     eval_set = []
-        #     cum_index = np.concatenate(([0], qgroups_eval)).cumsum()
-        #     for i in range(len(cum_index) - 1):
-        #         eval_set.append((X_eval[cum_index[i]:cum_index[i + 1]], y_eval[cum_index[i]:cum_index[i + 1]]))
-        #     kwargs = {'eval_set': eval_set, 'eval_group': qgroups_eval, 'eval_metric': 'ndcg', 'eval_at': tuple(range(1, 11))}
-
+        if evaluation_data_filename is not None:
+            eval_query_to_document_relevance_scores = self.extract_data_helper(evaluation_data_filename)
+            X_eval, y_eval, qgroups_eval = self.prepare_training_data(eval_query_to_document_relevance_scores)
+            eval_set = [(np.array(X_eval), np.array(y_eval))]
+            kwargs = {'eval_set': eval_set, 'eval_group': [qgroups_eval], 'eval_metric': 'ndcg', 'eval_at': [10]}
         # TODO: Train the model
         self.model.fit(X, y, qgroups, **kwargs)
 
@@ -155,8 +151,15 @@ class L2RRanker:
             raise ValueError("Model has not been trained yet.")
         # TODO: Return a prediction made using the LambdaMART model
         return self.model.predict(X)
+    
+    def relevant_doc_filter(self, query_parts: list[str]) -> set[int]:
+        relevant_docs = set()
+        for token in set(query_parts):
+            docids = [doc_info[0] for doc_info in self.document_index.get_postings(token)]
+            relevant_docs.update(set(docids))
+        return relevant_docs
 
-    def query(self, query: str) -> list[tuple[int, float]]:
+    def query(self, query: str, **kwargs) -> list[tuple[int, float]]:
         """
         Retrieves potentially-relevant documents, constructs feature vectors for each query-document pair,
         uses the L2R model to rank these documents, and returns the ranked documents.
@@ -170,6 +173,10 @@ class L2RRanker:
         """
         # TODO: Retrieve potentially-relevant documents
         query_parts = self.document_preprocessor.tokenize(query)
+        if len(query_parts) == 0:
+            return []
+
+        # relevant_docs = self.relevant_doc_filter(query_parts)
         # TODO: Fetch a list of possible documents from the index and create a mapping from
         #       a document ID to a dictionary of the counts of the query terms in that document.
         #       You will pass the dictionary to the RelevanceScorer as input
@@ -180,15 +187,12 @@ class L2RRanker:
         # TODO: Accumulate the documents word frequencies for the title and the main body
         doc_term_counts = L2RRanker.accumulate_doc_term_counts(self.document_index, query_parts)
         title_term_counts = L2RRanker.accumulate_doc_term_counts(self.title_index, query_parts)
-        relevance_docs = doc_term_counts.keys()
-        if len(relevance_docs) == 0:
-            return []
 
         # TODO: Score and sort the documents by the provided scorer for just the document's main text (not the title).
         #       This ordering determines which documents we will try to *re-rank* using our L2R model
-        naive_ranked_docs = self.ranker.query(query)
+        naive_ranked_docs = self.ranker.query(query, **kwargs)
 
-        naive_ranked_docs = [(docid, score) for docid, score in naive_ranked_docs if docid in relevant_docs]
+        naive_ranked_docs = [(docid, score) for docid, score in naive_ranked_docs if docid in doc_term_counts]
         # TODO: Filter to just the top 100 documents for the L2R part for re-ranking
         possible_docs = [docid for docid, _ in naive_ranked_docs[:100]]
 
@@ -197,8 +201,7 @@ class L2RRanker:
             docids = []
             feature_vecs = []
             for docid in possible_docs:
-                feature_vec = self.feature_extractor.generate_features(docid, doc_term_counts[docid], 
-                                    title_term_counts[docid], query_parts, query)
+                feature_vec = self.feature_extractor.generate_features(docid, doc_term_counts.get(docid, {}), title_term_counts.get(docid, {}), query_parts, query)
                 docids.append(docid)
                 feature_vecs.append(feature_vec)
 
@@ -334,7 +337,7 @@ class L2RFeatureExtractor:
             The BM25 score
         """
         # TODO: Calculate the BM25 score and return it
-        return self.bm25_doc.score(docid, doc_word_counts, query_parts)
+        return self.bm25_doc.score(docid, doc_word_counts, Counter(query_parts))
 
     # TODO: Pivoted Normalization
     def get_pivoted_normalization_score(self, docid: int, doc_word_counts: dict[str, int],
@@ -351,7 +354,7 @@ class L2RFeatureExtractor:
             The pivoted normalization score
         """
         # TODO: Calculate the pivoted normalization score and return it
-        return self.pivoted_norm_doc.score(docid, doc_word_counts, query_parts)
+        return self.pivoted_norm_doc.score(docid, doc_word_counts, Counter(query_parts))
 
     # TODO: Document Categories
     def get_document_categories(self, docid: int) -> list:
@@ -563,5 +566,4 @@ class LambdaMART:
     
     def load(self, file_name: str = 'l2r.model.txt') -> None:
         self.model = lightgbm.Booster(model_file=file_name)
-
 

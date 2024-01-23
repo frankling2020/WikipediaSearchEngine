@@ -1,8 +1,8 @@
 from sentence_transformers import SentenceTransformer, util
 from numpy import ndarray
 from ranker import Ranker
-import torch
 import numpy as np
+import torch
 
 
 class VectorRanker(Ranker):
@@ -20,8 +20,6 @@ class VectorRanker(Ranker):
 
         Using zip(encoded_docs, row_to_docid) should give you the mapping between the docid and the embedding.
         """
-        # Use device='cpu' when doing model instantiation (for AG)
-        # If you know what the parameter does, feel free to play around with it
         # TODO: Instantiate the bi-encoder model here
         self.device = torch.device('cpu')  # Do not change this unless you know what you are doing
         self.bi_encoder = SentenceTransformer(bi_encoder_model_name, device=self.device)
@@ -29,28 +27,54 @@ class VectorRanker(Ranker):
         self.encoded_docs = encoded_docs
         self.row_to_docid = row_to_docid
 
-    def query(self, query: str) -> list[tuple[int, float]]:
+    def query_rank_helper(self, encoded_query: ndarray) -> list[tuple[int, float]]:
+        similarity_scores = np.sum(encoded_query * self.encoded_docs, axis=1)
+        doc_id_score = list(zip(self.row_to_docid, similarity_scores))
+        doc_id_score.sort(key=lambda x: (-x[1], x[0]))
+        return doc_id_score
+
+    def query(self, query: str, pseudofeedback_num_docs=0,
+              pseduofeedback_alpha=0.8, pseduofeedback_beta=0.2) -> list[tuple[int, float]]:
         """
         Encodes the query and then scores the relevance of the query with all the documents.
+        Performs query expansion using pseudo-relevance feedback if needed.
 
         Args:
-            query: The query in its original form (no stopword filtering/tokenization)
+            query: The query to search for
+            pseudofeedback_num_docs: If pseudo-feedback is requested, the number of top-ranked documents
+                to be used in the query
+            pseduofeedback_alpha: If pseudo-feedback is used, the alpha parameter for weighting
+                how much to include of the original query in the updated query
+            pseduofeedback_beta: If pseudo-feedback is used, the beta parameter for weighting
+                how much to include of the relevant documents in the updated query
 
         Returns:
             A sorted list of tuples containing the document id and its relevance to the query,
             with most relevant documents first
         """
-        # NOTE: Do not forget to handle edge cases
+        pass
+        # NOTE: Do not forget to handle edge cases on the input
         doc_id_score = []
         if len(query) != 0 and len(self.row_to_docid) != 0:
             # TODO: Encode the query using the bi-encoder
             encoded_query = self.bi_encoder.encode(query, device=self.device, normalize_embeddings=True)
-            # TODO: Score the similarity of the query vector and document vectors for relevance
-            # Calculate the dot products between the query embedding and all document embeddings
-            similarity_scores = np.sum(encoded_query * self.encoded_docs, axis=1)
-            # TODO: Generate the ordered list of (document id, score) tuples
-            doc_id_score = list(zip(self.row_to_docid, similarity_scores))
-            # TODO: Sort the list so most relevant are first
-            doc_id_score.sort(key=lambda x: (-x[1], x[0]))
-            
+            # TODO (HW4): If the user has indicated we should use feedback, then update the
+            #  query vector with respect to the specified number of most-relevant documents
+            doc_id_score = self.query_rank_helper(encoded_query)
+            if pseudofeedback_num_docs > 0:
+                # TODO (HW4): Get the most-relevant document vectors for the initial query
+                pseudo_docids = [x[0] for x in doc_id_score[:pseudofeedback_num_docs]]
+                pseudo_ids = [self.row_to_docid.index(x) for x in pseudo_docids]
+                pseudo_doc_emb = self.encoded_docs[pseudo_ids].mean(axis=0)
+                # TODO (HW4): Compute the average vector of the specified number of most-relevant docs
+                #  according to how many are to be used for pseudofeedback
+                updated_query = pseduofeedback_alpha * encoded_query + pseduofeedback_beta * pseudo_doc_emb
+                # TODO (HW4): Combine the original query doc with the feedback doc to use
+                #  as the new query embedding
+                # updated_query = updated_query / np.linalg.norm(updated_query)
+                # TODO: Score the similarity of the query vec and document vectors for relevance
+                # TODO: Generate the ordered list of (document id, score) tuples
+                # TODO: Sort the list by relevance score in descending order (most relevant first)
+                doc_id_score = self.query_rank_helper(updated_query)
+        # NOTE: Do not forget to handle edge cases
         return doc_id_score

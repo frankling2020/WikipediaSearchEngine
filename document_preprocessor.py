@@ -236,35 +236,3 @@ def read_dataset(dataset_path: str, max_docs: int = -1, batch_size: int = 1):
                 if max_docs != -1 and i >= max_docs:
                     break
                 yield json.loads(line)
-
-
-# Don't forget that you can have a main function here to test anything in the file
-if __name__ == '__main__':
-    from tqdm import tqdm
-    import json
-    from time import time
-
-    d2q = Doc2QueryAugmenter()
-    dataset_name = "wikipedia_200k_dataset.jsonl.gz"
-    max_docs = 100
-    batch_size = 20
-    n_queries = 1
-    token_key = "text"
-    prefix_prompt = "Generate a query for the following text: "
-    queries = {}
-
-    t1 = time()
-    for doc in tqdm(read_dataset(dataset_name, max_docs, batch_size), total=max_docs//batch_size):
-        doc_id = doc["docid"]
-        texts = doc[token_key]
-        if batch_size > 1:        
-            batch_queries = d2q.get_batched_queries(texts, n_queries, prefix_prompt=prefix_prompt)
-            for id, doc_queries in zip(doc_id, batch_queries):
-                queries[id] = doc_queries
-        else:
-            queries[doc_id] = d2q.get_queries(texts, n_queries, prefix_prompt=prefix_prompt)
-
-    print(f"Time taken: {time() - t1:.2f}s")
-    with open("doc2query.json", "w") as f:
-        json.dump(queries, f)
-
