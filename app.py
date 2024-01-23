@@ -1,6 +1,4 @@
 '''
-DO NOT EDIT
-
 Author: Prithvijit Dasgupta
 
 This is the FastAPI start index. Currently it has 4 paths
@@ -8,19 +6,18 @@ This is the FastAPI start index. Currently it has 4 paths
 1. GET / -> Fetches the test bench HTML file. Used by browsers
 2. POST /search -> This is the main search API which is responsible for perform the search across the index
 3. GET /cache/:query/page/:page -> This path is meant to be a cached response for pagination purposes.
-4. GET /experiment -> Run a relevance experiment
 '''
 # importing external modules
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from threading import Timer
 import math
+import pandas as pd
 
 
 # importing internal modules
 from models import QueryModel, APIResponse, PaginationModel
 from pipeline import initialize
-from relevance import run_relevance_tests
 
 # Some global variables
 # TODO Remove global variables
@@ -30,7 +27,9 @@ algorithm = initialize()
 pagination_cache = {}
 timer_mgr = {}
 
-# Some global configurations
+# experiment_data = pd.concat([pd.read_csv('./l2r/test.csv'), pd.read_csv('./l2r/train.csv')])
+
+# TODO move configuration to a config file
 PAGE_SIZE = 10
 CACHE_TIME = 3600
 
@@ -46,8 +45,6 @@ def delete_from_cache(query):
         del timer_mgr[query]
 
 # API paths begin here
-
-
 @app.get('/', response_class=HTMLResponse)
 async def home():
     with open('./web/home.html') as f:
@@ -69,13 +66,6 @@ async def doSearch(body: QueryModel) -> APIResponse:
     return APIResponse(results=response[:PAGE_SIZE],
                        page=PaginationModel(prev=f'/cache/{request_query}/page/0',
                                             next=f'/cache/{request_query}/page/1'))
-
-
-@app.get('/experiment')
-async def runExperiment() -> APIResponse:
-    results = run_relevance_tests(algorithm)
-    return APIResponse(results=results, page=None)
-
 
 @app.get('/cache/{query}/page/{page}')
 async def getCache(query: str, page: int) -> APIResponse:

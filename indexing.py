@@ -1,23 +1,17 @@
-'''
-Here you will be implemeting the indexing strategies for your search engine. You will need to create, persist and load the index.
-This will require some amount of file handling.
-Use libraries such as tqdm, orjson, collections.Counter, shelve if you need them.
-DO NOT use the pickle module.
-NOTE: 
-There are a few changes to the indexing file for HW2.
-The changes are marked with a comment `# NOTE: changes in this method for HW2`. 
-Please see more in the README.md.
-'''
 from enum import Enum
 import json
 import os
 from tqdm import tqdm
 from collections import Counter, defaultdict
-from document_preprocessor import Tokenizer
+import shelve
+from document_preprocessor import Tokenizer, read_dataset
 import gzip
+
 
 from bisect import bisect_left
 import orjson
+import gc
+
 
 class IndexType(Enum):
     # the three types of index currently supported are InvertedIndex, PositionalIndex and OnDiskInvertedIndex
@@ -36,11 +30,19 @@ class InvertedIndex:
 
     def __init__(self) -> None:
         self.statistics = defaultdict(Counter)  # the central statistics of the index
+        self.statistics = {
+            'mean_document_length': 0, 
+            'number_of_documents': 0, 
+            'total_token_count': 0, 
+            'unique_token_count': 0, 
+            'total_token_count': 0,
+            'fake_id_counter': 0,
+        }
         self.index = {}  # the index
         # metadata like length, number of unique tokens of the documents
         self.document_metadata = {}
         self.vocabulary = set()
-        self.__init__helper()
+        self.term_freq = defaultdict(int)
 
     # NOTE: The following functions have to be implemented in the three inherited classes and not in this class
 
@@ -137,17 +139,6 @@ class InvertedIndex:
     ###############################################################################################
     #### SELF-DEFINED FUNCTIONS                                                                ####
     ###############################################################################################
-    def __init__helper(self) -> None:
-        self.statistics = {
-            'mean_document_length': 0, 
-            'number_of_documents': 0, 
-            'total_token_count': 0, 
-            'unique_token_count': 0, 
-            'total_token_count': 0,
-            'fake_id_counter': 0,
-        }
-        self.term_freq = defaultdict(int)
-
     def save_json_func(self, data, f):
         if isinstance(data, dict):
             data = {str(k): v for k, v in data.items()}
@@ -316,9 +307,7 @@ class BasicInvertedIndex(InvertedIndex):
             for token in tqdm(self.index, desc="load index"):
                 self.index[token] = list(map(lambda x: tuple(x), self.index[token]))
                 for term_info in self.index[token]:
-                    token = term_info[0]
-                    count = term_info[1]
-                    self.term_freq[token] += count
+                    self.term_freq[term_info[0]] += term_info[1]
         self.load_except_index(index_directory_name)
 
 
@@ -356,99 +345,98 @@ class OnDiskInvertedIndex(BasicInvertedIndex):
     # NOTE: Do nothing, unless you want to re-experience the pain of cross-platform compatibility :'( 
 
 
-
-def read_dataset(dataset_path: str, max_docs: int = -1):
-    """Read the dataset from the path with a maximum number of documents to read
-
-    Args:
-        dataset_path (str): dataset path
-        max_docs (int, optional): maximum number of documents to read. Defaults to -1.
-
-    Yields:
-        dict: a document
-    """
-    open_func = lambda x: gzip.open(x, 'rb') if x.endswith('.gz') else open(x, 'r')
-    with open_func(dataset_path) as f:
-        for i, line in enumerate(f):
-            if max_docs != -1 and i >= max_docs:
-                break
-            yield json.loads(line)
-
+def expand_doc(doc: dict, text_key: str, doc_augment_dict: dict[int, list[str]] | None = None) -> str:
+    if doc_augment_dict is None:
+        return doc[text_key]
+    else:
+        try:
+            queries = doc_augment_dict.get(doc['docid'], [])
+            return doc[text_key] + ' ' + ' '.join(queries)    
+        except:
+            print(queries, doc['docid'])
+            pass
 
 class Indexer:
-    '''
+    """
     The Indexer class is responsible for creating the index used by the search/ranking algorithm.
-    '''
-
-    # NOTE: changes in this method for HW2. 
-    # See more in the README.md.
-    # replaced argument: `stopword_filtering`
-    # new argument: `text_key` & `max_docs`
+    """
     @staticmethod
-    def create_index(index_type: IndexType, dataset_path: str, 
-                     document_preprocessor: Tokenizer, stopwords: set[str], 
+    def create_index(index_type: IndexType, dataset_path: str,
+                     document_preprocessor: Tokenizer, stopwords: set[str],
                      minimum_word_frequency: int, text_key="text",
-                     max_docs=-1) -> InvertedIndex:
-        '''
-        The Index class' static function which is responsible for creating an inverted index
+                     max_docs: int = -1, doc_augment_dict: dict[int, list[str]] | None = None) -> InvertedIndex:
+        """
+        Creates an inverted index.
 
-        Parameters:        
+        Args:
+            index_type: This parameter tells you which type of index to create, e.g., BasicInvertedIndex
+            dataset_path: The file path to your dataset
+            document_preprocessor: A class which has a 'tokenize' function which would read each document's text
+                and return a list of valid tokens
+            stopwords: The set of stopwords to remove during preprocessing or 'None' if no stopword filtering is to be done
+            minimum_word_frequency: An optional configuration which sets the minimum word frequency of a particular token to be indexed
+                If the token does not appear in the document at least for the set frequency, it will not be indexed.
+                Setting a value of 0 will completely ignore the parameter.
+            text_key: The key in the JSON to use for loading the text
+            max_docs: The maximum number of documents to index
+                Documents are processed in the order they are seen.
+            doc_augment_dict: An optional argument; This is a dict created from the doc2query.csv where the keys are
+                the document id and the values are the list of queries for a particular document.
 
-        index_type [IndexType]: This parameter tells you which type of index to create, e.g., a BasicInvertedIndex.
-
-        dataset_path [str]: This is the file path to your dataset
-
-        document_preprocessor: This is a class which has a 'tokenize' function which would read each document's text and return back a list of valid tokens.
-
-        stopwords [set[str]]: The set of stopwords to remove during preprocessing or `None` if no stopword preprocessing is to be done.
-
-        minimum_word_frequency [int]: This is also an optional configuration which sets the minimum word frequency of a particular token to be indexed. If the token does not appear in the document atleast for the set frequency, it will not be indexed. Setting a value of 0 will completely ignore the parameter.
-
-        text_key [str]: the key in the JSON to use for loading the text. 
-
-        max_docs [int]: The maximum number of documents to index. Documents are processed in the order they are seen
-
-        '''        
-
-
-        # TODO: Figure out what type of InvertedIndex to create. For homework 2, only the BasicInvertedIndex is required
-        # to be supported
+        Returns:
+            An inverted index
+        """
         index_type_to_class = {
             IndexType.InvertedIndex: BasicInvertedIndex,
             IndexType.PositionalIndex: PositionalInvertedIndex,
             IndexType.OnDiskInvertedIndex: OnDiskInvertedIndex,
         }
 
-        index = index_type_to_class[index_type]()            
+        index = index_type_to_class[index_type]()
+        # TODO (HW3): This function now has an optional argument doc_augment_dict; check README
+       
+        # HINT: Think of what to do when doc_augment_dict exists, how can you deal with the extra information?
+        #       How can you use that information with the tokens?
+        #       If doc_augment_dict doesn't exist, it's the same as before, tokenizing just the document text
+          
+        # TODO: Implement this class properly. This is responsible for going through the documents
+        #       one by one and inserting them into the index after tokenizing the document
+
+        # TODO: Figure out what type of InvertedIndex to create.
+        #       For HW3, only the BasicInvertedIndex is required to be supported
 
         # TODO: If minimum word frequencies are specified, process the collection to get the
-        # word frequencies
-        # NOTE (hw2): `minimum_word_frequency` needs to be computed based on frequencies 
-        # at the **collection-level***, _not_ at the document level.
-
+        #       word frequencies
         nonsense_token = ""
         stopwords = set(map(str.lower, stopwords))
         stopwords_mapper = lambda x: nonsense_token if str.lower(x) in stopwords else x
 
-        # NOTE: Make sure to support both .jsonl.gz and .jsonl as input.
-
+        # NOTE: Make sure to support both .jsonl.gz and .jsonl as input
+                      
         # TODO: Figure out which set of words to not index because they are stopwords or
-        # have too low of a frequency.
-        # minimum frequency word
+        #       have too low of a frequency
         mwf_words = set()
         if minimum_word_frequency > 0:
             token_counter = defaultdict(int)
             for doc in tqdm(read_dataset(dataset_path, max_docs), desc="min_freq"):
-                tokens = document_preprocessor.tokenize(doc[text_key])
+                text = expand_doc(doc, text_key, doc_augment_dict)
+                tokens = document_preprocessor.tokenize(text)
                 for token in tokens:
                     count = token_counter[token]
                     if count < minimum_word_frequency:
                         token_counter[token] = count + 1 
             mwf_words = set(filter(lambda x: token_counter[x] < minimum_word_frequency, token_counter.keys()))
+            del token_counter
         mwf_words_mapper = lambda x: nonsense_token if x in mwf_words else x
-        
+
+        # HINT: This homework should work fine on a laptop with 8GB of memory but if you need,
+        #       you can delete some unused objects here to free up some space
+
+        gc.collect()
+        tokens = []
         for doc in tqdm(read_dataset(dataset_path, max_docs), desc="indexing"):
-            tokens = document_preprocessor.tokenize(doc[text_key])
+            text = expand_doc(doc, text_key, doc_augment_dict)
+            tokens = document_preprocessor.tokenize(text)
             for i, token in enumerate(tokens):
                 token = stopwords_mapper(token)
                 if token != nonsense_token:
@@ -457,18 +445,11 @@ class Indexer:
             docid = doc['docid']
             index.add_doc(docid, tokens)
 
-
-        # HINT: This homework should work fine on a laptop with 8GB of memory but if you need, you can
-        # delete some unused objects to free up some space
-
-        # TODO: Once the set of stopwords and low-frequency words is determined, read the collection 
-        # and process/index each document. Only index the terms that are not stopwords and have 
-        # high-enough frequency. This should involve replacing those tokens with None values and 
-        # passing the documents to your inverted index object's add_doc
-
-        index.save('BasicInvertedIndex')
+        # TODO: Read the collection and process/index each document.
+        #       Only index the terms that are not stopwords and have high-enough frequency
+        # index.save('BasicInvertedIndex')
         return index
-    
+
     @staticmethod
     def load_index(index_directory_name: str) -> InvertedIndex:
         '''
@@ -477,53 +458,3 @@ class Indexer:
         index = BasicInvertedIndex()
         index.load(index_directory_name)
         return index
-
-
-###############################################################################################
-#### P1 Important categories                                                               ####
-###############################################################################################
-def get_important_categories(dataset_path: str, minimum_category_count: int = 1000) -> None:
-    """Get the set of categories that occur more than minimum_category_count times
-
-    Args:
-        dataset_path (str): dataset path
-    """
-    important_categories = defaultdict(int)
-    for doc in tqdm(read_dataset(dataset_path)):
-        for category in doc['categories']:
-            if important_categories[category] < minimum_category_count:
-                important_categories[category] += 1
-    important_categories = set([k for k, v in important_categories.items() if v >= minimum_category_count])
-    # save the important categories to a file
-    with open('important_categories.txt', 'w') as f:
-        f.write('\n'.join(important_categories))
-
-
-if __name__ == '__main__':
-    import time
-    from document_preprocessor import RegexTokenizer
-
-    indexers = [
-        ('BasicInvertedIndex', IndexType.InvertedIndex),
-    ]
-
-    # dataset_path = 'wikipedia_200k_dataset.jsonl.gz'
-    dataset_path = 'toy_dataset.jsonl'
-    document_preprocessor = RegexTokenizer(token_regex='\\w+')
-
-    # p1: find the important categories
-    # get_important_categories(dataset_path)
-
-    time_infos = {}
-    memory_infos = {}
-    stopwords = set()
-    with open('stopwords.txt', 'r') as f:
-        stopwords = set(map(lambda x: x.strip(), f.readlines()))
-    for index_name, index_type in indexers:
-        start_time = time.time()
-        index = Indexer.create_index(index_type, dataset_path, document_preprocessor, stopwords, 50)
-        # index = Indexer.load_index(index_name)
-        if index_type == IndexType.OnDiskInvertedIndex:
-            index.index.close()
-        duration = time.time() - start_time
-        print(f'{index_name} took {duration} seconds')

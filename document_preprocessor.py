@@ -1,4 +1,9 @@
 from nltk.tokenize import RegexpTokenizer
+import torch
+from transformers import T5Tokenizer, T5ForConditionalGeneration
+import gzip
+from collections import defaultdict
+import json
 
 
 class Tokenizer:
@@ -12,9 +17,9 @@ class Tokenizer:
             lowercase: Whether to lowercase all the tokens
             multiword_expressions: A list of strings that should be recognized as single tokens
                 If set to 'None' no multi-word expression matching is performed.
-                No need to perform/implement multi-word expression recognition for HW2.
+                No need to perform/implement multi-word expression recognition for HW3.
         """
-        # TODO: Save arguments that are needed as fields of this class.
+        # TODO: Save arguments that are needed as fields of this class
         self.lowercase = lowercase
         self.multiword_expressions = multiword_expressions
 
@@ -30,7 +35,7 @@ class Tokenizer:
         Returns:
             A list of tokens containing processed multi-word expressions
         """
-        # NOTE: You shouldn't implement this in homework 2
+        # NOTE: You shouldn't implement this in homework 
         raise NotImplemented("MWE is not supported")
     
     def postprocess(self, input_tokens: list[str]) -> list[str]:
@@ -44,7 +49,7 @@ class Tokenizer:
         Returns:
             A list of tokens processed by lower-casing depending on the given condition
         """
-        # TODO: Add support for lower-casing.
+        # TODO: Add support for lower-casing
         if self.lowercase:
             input_tokens = [token.lower() for token in input_tokens]
         return input_tokens
@@ -72,17 +77,194 @@ class RegexTokenizer(Tokenizer):
             lowercase: Whether to lowercase all the tokens
             multiword_expressions: A list of strings that should be recognized as single tokens
                 If set to 'None' no multi-word expression matching is performed.
-                No need to perform/implement multi-word expression recognition for HW2; you can ignore this.
+                No need to perform/implement multi-word expression recognition for HW3; you can ignore this.
         """
         super().__init__(lowercase, multiword_expressions)
-        # TODO: Save a new argument that is needed as a field of this class.
-        # TODO: Initialize the NLTK's RegexpTokenizer 
+        # TODO: Save a new argument that is needed as a field of this class
+        # TODO: Initialize the NLTK's RegexpTokenizer
         self.token_regex = token_regex
         self.tokenizer = RegexpTokenizer(self.token_regex)
 
-    def tokenize(self, text: str) -> list[str]:        
-        # TODO: Tokenize the given text and perform postprocessing on the list of tokens using the postprocess function.
+    def tokenize(self, text: str) -> list[str]:
+        """Uses NLTK's RegexTokenizer and a regular expression pattern to tokenize a string.
+
+        Args:
+            text: An input text you want to tokenize
+
+        Returns:
+            A list of tokens
+        """
+        # TODO: Tokenize the given text and perform postprocessing on the list of tokens
+        #       using the postprocess function
         tokens = self.tokenizer.tokenize(text)
         tokens = self.postprocess(tokens)
         return tokens
+
+
+# TODO (HW3): Take in a doc2query model and generate queries from a piece of text
+# Note: This is just to check you can use the models;
+#       for downstream tasks such as index augmentation with the queries, use doc2query.csv
+class Doc2QueryAugmenter:
+    """
+    This class is responsible for generating queries for a document.
+    These queries can augment the document before indexing.
+
+    MUST READ: https://huggingface.co/doc2query/msmarco-t5-base-v1
+
+    OPTIONAL reading
+        1. Document Expansion by Query Prediction (Nogueira et al.): https://arxiv.org/pdf/1904.08375.pdf
+    """
+    def __init__(self, doc2query_model_name: str = 'doc2query/msmarco-t5-base-v1') -> None:
+        """
+        Creates the T5 model object and the corresponding dense tokenizer.
+        
+        Args:
+            doc2query_model_name: The name of the T5 model architecture used for generating queries
+        """
+        self.device = torch.device('cpu')  # Do not change this unless you know what you are doing
+        if torch.backends.cuda.is_built():
+            self.device = torch.device('cuda')
+        elif torch.backends.mps.is_built():
+            self.device = torch.device('mps')
+        # TODO (HW3): Create the dense tokenizer and query generation model using HuggingFace transformers
+        self.tokenizer = T5Tokenizer.from_pretrained(doc2query_model_name)
+        self.model = T5ForConditionalGeneration.from_pretrained(doc2query_model_name).to(self.device)
+
+    def get_queries(self, document: str, n_queries: int = 5, prefix_prompt: str = '') -> list[str]:
+        """
+        Steps
+            1. Use the dense tokenizer/encoder to create the dense document vector.
+            2. Use the T5 model to generate the dense query vectors (you should have a list of vectors).
+            3. Decode the query vector using the tokenizer/decode to get the appropriate queries.
+            4. Return the queries.
+         
+            Ensure you take care of edge cases.
+         
+        OPTIONAL (DO NOT DO THIS before you finish the assignment):
+            Neural models are best performing when batched to the GPU.
+            Try writing a separate function which can deal with batches of documents.
+        
+        Args:
+            document: The text from which queries are to be generated
+            n_queries: The total number of queries to be generated
+            prefix_prompt: An optional parameter that gets added before the text.
+                Some models like flan-t5 are not fine-tuned to generate queries.
+                So we need to add a prompt to instruct the model to generate queries.
+                This string enables us to create a prefixed prompt to generate queries for the models.
+                See the PDF for what you need to do for this part.
+                Prompt-engineering: https://en.wikipedia.org/wiki/Prompt_engineering
+        
+        Returns:
+            A list of query strings generated from the text
+        """
+        # Note: Feel free to change these values to experiment
+        document_max_token_length = 400  # as used in OPTIONAL Reading 1
+        top_p = 0.85
+
+        # NOTE: See https://huggingface.co/doc2query/msmarco-t5-base-v1 for details
+
+        # TODO (HW3): For the given model, generate a list of queries that might reasonably be issued to search
+        #       for that document
+        # NOTE: Do not forget edge cases
+        queries = []
+        if n_queries > 0 and len(document) > 0:
+            text = prefix_prompt + document
+            input_ids = self.tokenizer.encode(text, max_length=document_max_token_length, truncation=True, return_tensors='pt').to(self.device)
+            outputs = self.model.generate(
+                input_ids=input_ids,
+                do_sample=True,
+                max_length=64,
+                top_p=top_p,
+                num_return_sequences=n_queries
+            )
+            for output in outputs:
+                query = self.tokenizer.decode(output, skip_special_tokens=True)
+                queries.append(query)
+        return queries
+    
+    def get_batched_queries(self, documents: list[str], n_queries: int = 5, prefix_prompt: str = '') -> list[list[str]]:
+        document_max_token_length = 400  # as used in OPTIONAL Reading 1
+        top_p = 0.85
+
+        texts = [prefix_prompt + document for document in documents]
+        input_ids = self.tokenizer.batch_encode_plus(texts, max_length=document_max_token_length, truncation=True, return_tensors='pt').to(self.device)
+        outputs = self.model.generate(
+            input_ids=input_ids['input_ids'],
+            do_sample=True,
+            max_length=64,
+            top_p=top_p,
+            num_return_sequences=n_queries
+        )
+
+        queries = []
+        if len(outputs) > 1:
+            queries = self.tokenizer.batch_decode(outputs, skip_special_tokens=True)
+            queries = [queries[i:i+n_queries] for i in range(0, len(queries), n_queries)]
+        return queries
+
+
+def read_dataset(dataset_path: str, max_docs: int = -1, batch_size: int = 1):
+    """Read the dataset from the path with a maximum number of documents to read
+
+    Args:
+        dataset_path (str): dataset path
+        max_docs (int, optional): maximum number of documents to read. Defaults to -1.
+
+    Yields:
+        dict: a document
+    """
+    open_func = lambda x: gzip.open(x, 'rb') if x.endswith('.gz') else open(x, 'r')
+    with open_func(dataset_path) as f:
+        if batch_size > 1:
+            batch = defaultdict(list)
+            cnt = 0
+            for i, line in enumerate(f):
+                if max_docs != -1 and i >= max_docs:
+                    break
+                doc = json.loads(line)
+                for k, v in doc.items():
+                    batch[k].append(v)
+                cnt += 1
+                if cnt == batch_size:
+                    yield batch
+                    batch.clear()
+                    cnt = 0
+            if cnt > 0:
+                yield batch
+        else:
+            for i, line in enumerate(f):
+                if max_docs != -1 and i >= max_docs:
+                    break
+                yield json.loads(line)
+
+
+# Don't forget that you can have a main function here to test anything in the file
+if __name__ == '__main__':
+    from tqdm import tqdm
+    import json
+    from time import time
+
+    d2q = Doc2QueryAugmenter()
+    dataset_name = "wikipedia_200k_dataset.jsonl.gz"
+    max_docs = 100
+    batch_size = 20
+    n_queries = 1
+    token_key = "text"
+    prefix_prompt = "Generate a query for the following text: "
+    queries = {}
+
+    t1 = time()
+    for doc in tqdm(read_dataset(dataset_name, max_docs, batch_size), total=max_docs//batch_size):
+        doc_id = doc["docid"]
+        texts = doc[token_key]
+        if batch_size > 1:        
+            batch_queries = d2q.get_batched_queries(texts, n_queries, prefix_prompt=prefix_prompt)
+            for id, doc_queries in zip(doc_id, batch_queries):
+                queries[id] = doc_queries
+        else:
+            queries[doc_id] = d2q.get_queries(texts, n_queries, prefix_prompt=prefix_prompt)
+
+    print(f"Time taken: {time() - t1:.2f}s")
+    with open("doc2query.json", "w") as f:
+        json.dump(queries, f)
 

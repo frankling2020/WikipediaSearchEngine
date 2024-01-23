@@ -85,6 +85,8 @@ def run_relevance_tests(relevance_data_filename: str, ranker) -> dict[str, float
         result_doc = ranker.query(query)
         if isinstance(result_doc[0], dict):
             result_doc = [result.get('docid') for result in result_doc]
+        else:
+            result_doc = [result[0] for result in result_doc]
         result_rel = [doc_to_rel.get(result, 1) for result in result_doc]
         ideal_rel = sorted(doc_to_rel.values(), reverse=True)
         map_result_rel = list(map(lambda x: 1 if x > 3 else 0, result_rel))
