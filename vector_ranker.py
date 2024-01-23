@@ -34,7 +34,7 @@ class VectorRanker(Ranker):
         return doc_id_score
 
     def query(self, query: str, pseudofeedback_num_docs=0,
-              pseduofeedback_alpha=0.8, pseduofeedback_beta=0.2) -> list[tuple[int, float]]:
+              pseudofeedback_alpha=0.8, pseudofeedback_beta=0.2, user_id=None) -> list[tuple[int, float]]:
         """
         Encodes the query and then scores the relevance of the query with all the documents.
         Performs query expansion using pseudo-relevance feedback if needed.
@@ -43,16 +43,17 @@ class VectorRanker(Ranker):
             query: The query to search for
             pseudofeedback_num_docs: If pseudo-feedback is requested, the number of top-ranked documents
                 to be used in the query
-            pseduofeedback_alpha: If pseudo-feedback is used, the alpha parameter for weighting
+            pseudofeedback_alpha: If pseudo-feedback is used, the alpha parameter for weighting
                 how much to include of the original query in the updated query
-            pseduofeedback_beta: If pseudo-feedback is used, the beta parameter for weighting
+            pseudofeedback_beta: If pseudo-feedback is used, the beta parameter for weighting
                 how much to include of the relevant documents in the updated query
+            user_id: We don't use the user_id parameter in vector ranker. It is here just to align all the
+                    Ranker interfaces.
 
         Returns:
             A sorted list of tuples containing the document id and its relevance to the query,
             with most relevant documents first
         """
-        pass
         # NOTE: Do not forget to handle edge cases on the input
         doc_id_score = []
         if len(query) != 0 and len(self.row_to_docid) != 0:
@@ -68,7 +69,7 @@ class VectorRanker(Ranker):
                 pseudo_doc_emb = self.encoded_docs[pseudo_ids].mean(axis=0)
                 # TODO (HW4): Compute the average vector of the specified number of most-relevant docs
                 #  according to how many are to be used for pseudofeedback
-                updated_query = pseduofeedback_alpha * encoded_query + pseduofeedback_beta * pseudo_doc_emb
+                updated_query = pseudofeedback_alpha * encoded_query + pseudofeedback_beta * pseudo_doc_emb
                 # TODO (HW4): Combine the original query doc with the feedback doc to use
                 #  as the new query embedding
                 # updated_query = updated_query / np.linalg.norm(updated_query)
@@ -78,3 +79,21 @@ class VectorRanker(Ranker):
                 doc_id_score = self.query_rank_helper(updated_query)
         # NOTE: Do not forget to handle edge cases
         return doc_id_score
+
+    # TODO (HW5): Find the dot product (unnormalized cosine similarity) for the list of documents (pairwise)
+    # NOTE: You should return a matrix where element [i][j] would represent similarity between
+    #   list_docs[i] and list_docs[j]
+    def document_similarity(self, list_docs: list[int]) -> np.ndarray:
+        """
+        Calculates the pairwise similarities for a given list of documents
+
+        Args:
+            list_docs: A list of document IDs
+
+        Returns:
+            A matrix where element [i][j] is a similarity score between list_docs[i] and list_docs[j]
+        """
+        doc_embs = self.encoded_docs[[self.row_to_docid.index(docid) for docid in list_docs]]
+        # doc_embs = doc_embs / np.linalg.norm(doc_embs, axis=1, keepdims=True)
+        return np.dot(doc_embs, doc_embs.T)
+
