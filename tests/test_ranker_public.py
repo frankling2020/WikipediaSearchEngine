@@ -37,7 +37,7 @@ class TestScoreBase(unittest.TestCase):
         self.preprocessor = MockTokenizer()
         self.stopwords = set(['a', 'an', 'and', 'the', 'this'])
         self.index = Indexer.create_index(
-            IndexType.InvertedIndex, './data.jsonl', self.preprocessor, self.stopwords, 1)
+            IndexType.InvertedIndex, 'data/data.jsonl', self.preprocessor, self.stopwords, 1)
         self.doc_word_counts = {'to': 2, 'AI': 1, 'ML': 1, 
             'algorithms': 1, 'drive': 1, 'personal': 1, 
             'assistants': 1, 'like': 1, 'Siri,': 1, 'Alexa,': 1, 
@@ -48,8 +48,8 @@ class TestScoreBase(unittest.TestCase):
             'reminders': 1, 'answering': 1, 'questions.': 1
         }
         self.relevant_doc_index = Indexer.create_index(
-            IndexType.InvertedIndex, './data_relevant.jsonl', self.preprocessor, self.stopwords, 1)
-        self.raw_text_dict = self.get_raw_text_dict('data.jsonl')
+            IndexType.InvertedIndex, 'data/data_relevant.jsonl', self.preprocessor, self.stopwords, 1)
+        self.raw_text_dict = self.get_raw_text_dict('data/data.jsonl')
 
     def get_raw_text_dict(self, dataset_name):
         raw_text_dict = {}
@@ -293,10 +293,10 @@ class TestPersonalizedBM25(unittest.TestCase):
         self.preprocessor = RegexTokenizer('\\w+')
         self.stopwords = set(['a', 'an', 'and', 'the', 'this'])
         self.index = Indexer.create_index(
-            IndexType.InvertedIndex, './data.jsonl', self.preprocessor, self.stopwords, 1)
+            IndexType.InvertedIndex, 'data/data.jsonl', self.preprocessor, self.stopwords, 1)
         self.relevant_doc_index = Indexer.create_index(
-            IndexType.InvertedIndex, './data_relevant.jsonl', self.preprocessor, self.stopwords, 1)
-        self.raw_text_dict = self.get_raw_text_dict('data.jsonl')
+            IndexType.InvertedIndex, 'data/data_relevant.jsonl', self.preprocessor, self.stopwords, 1)
+        self.raw_text_dict = self.get_raw_text_dict('data/data.jsonl')
         scorer = PersonalizedBM25(self.index, self.relevant_doc_index)
         self.ranker = Ranker(self.index, self.preprocessor,
                              self.stopwords, scorer, self.raw_text_dict)

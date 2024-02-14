@@ -11,7 +11,7 @@ class TestNetworkFeatures(unittest.TestCase):
 
         nf = NetworkFeatures()
 
-        network = nf.load_network('toy-network.csv', 80)
+        network = nf.load_network('data/toy-network.csv', 80)
 
         self.assertEqual(len(network.names), 20, 'Expected 20 nodes in graph')
 
@@ -20,7 +20,7 @@ class TestNetworkFeatures(unittest.TestCase):
 
         nf = NetworkFeatures()
 
-        network = nf.load_network('toy-network.csv.gz', 80)
+        network = nf.load_network('data/toy-network.csv.gz', 80)
 
         self.assertEqual(len(network.names), 20, 'Expected 20 nodes in graph')
 
@@ -28,7 +28,7 @@ class TestNetworkFeatures(unittest.TestCase):
         '''Test calculating the Pagerank scores'''
 
         nf = NetworkFeatures()
-        network = nf.load_network('toy-network.csv', 80)
+        network = nf.load_network('data/toy-network.csv', 80)
         
         pr_scores = [0.05125961, 0.05951749, 0.04892111, 0.05118604, 0.08388691,
                      0.05019047, 0.06019026, 0.06067016, 0.0379761 , 0.02879423,
@@ -45,7 +45,7 @@ class TestNetworkFeatures(unittest.TestCase):
         '''Test calculating the Pagerank scores'''
 
         nf = NetworkFeatures()
-        network = nf.load_network('toy-network.csv', 80)
+        network = nf.load_network('data/toy-network.csv', 80)
 
         weights   = {i: w for i, w in enumerate([0.07652791, 0.01072198, 0.04272346, 0.03483903, 0.04443277, 
                      0.0312399,  0.05502874, 0.07246399, 0.08816051, 0.04774878,
@@ -66,7 +66,7 @@ class TestNetworkFeatures(unittest.TestCase):
         '''Test calculating the Pagerank scores'''
 
         nf = NetworkFeatures()
-        network = nf.load_network('toy-network.csv', 80)
+        network = nf.load_network('data/toy-network.csv', 80)
         
         weights =   {i: w for i, w in enumerate([0.05, 0.05, 0.05, 0.05, 0.05,
                      0.05, 0.05, 0.05, 0.05, 0.05,
@@ -88,7 +88,7 @@ class TestNetworkFeatures(unittest.TestCase):
         '''Test calculating the Pagerank scores'''
 
         nf = NetworkFeatures()
-        network = nf.load_network('toy-network.csv', 80)
+        network = nf.load_network('data/toy-network.csv', 80)
         
 #        weights =   [0.5, 0.025, 0.025, 0.025, 0.025,
 #                     0.025, 0.025, 0.025, 0.025, 0.025,
@@ -113,7 +113,7 @@ class TestNetworkFeatures(unittest.TestCase):
         '''Test calculating the Pagerank scores'''
 
         nf = NetworkFeatures()
-        network = nf.load_network('toy-network.csv', 80)
+        network = nf.load_network('data/toy-network.csv', 80)
         
         weights =   {i: w for i, w in enumerate([0.5, 0.025, 0.025, 0.025, 0.025,
                      0.025, 0.025, 0.025, 0.025, 0.025,
@@ -133,7 +133,7 @@ class TestNetworkFeatures(unittest.TestCase):
         '''Test calculating the HITS scores'''
 
         nf = NetworkFeatures()
-        network = nf.load_network('toy-network.csv', 80)
+        network = nf.load_network('data/toy-network.csv', 80)
 
         actual_hub_scores, actual_authority_scores = nf.calculate_hits(network)
 
@@ -155,8 +155,8 @@ class TestNetworkFeatures(unittest.TestCase):
         
     def test_get_all_network_statistics(self):
         nf = NetworkFeatures()
-        expected_df = pd.read_csv('network_stats.csv')
-        network = nf.load_network('toy-network.csv', 80)
+        expected_df = pd.read_csv('data/network_stats.csv')
+        network = nf.load_network('data/toy-network.csv', 80)
         actual_df = nf.get_all_network_statistics(network)
         pd.testing.assert_frame_equal(actual_df, expected_df, check_dtype=False, check_exact=False)
 

@@ -136,4 +136,4 @@ if __name__ == '__main__':
     nf = NetworkFeatures()
     g = nf.load_network('edgelist.csv.gz', 92650947)
     final_df = nf.get_all_network_statistics(g)
-    final_df.to_csv('network_stats.csv', index=False)
+    final_df.to_csv('data/network_stats.csv', index=False)

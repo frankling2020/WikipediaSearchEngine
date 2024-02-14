@@ -326,7 +326,7 @@ class TestIndexer_BasicInvertedIndex(unittest.TestCase):
 
     def test_index_vocabularly(self):
 
-        index = Indexer.create_index(self.index_type, 'toy_dataset.jsonl', self.tokenizer, set(), 0)
+        index = Indexer.create_index(self.index_type, 'data/toy_dataset.jsonl', self.tokenizer, set(), 0)
         stats = index.get_statistics()
         
         expected_stats = {'unique_token_count': 10,
@@ -341,7 +341,7 @@ class TestIndexer_BasicInvertedIndex(unittest.TestCase):
     def test_create_index_no_stopwords_no_mwf(self):
         '''Test creating an index with no stopwords and no minimum word frequency'''
 
-        index = Indexer.create_index(self.index_type, 'toy_dataset.jsonl', self.tokenizer, set(), 0)
+        index = Indexer.create_index(self.index_type, 'data/toy_dataset.jsonl', self.tokenizer, set(), 0)
         stats = index.get_statistics()
         expected_stats = {'unique_token_count': 10,
                           'total_token_count': 28,
@@ -354,7 +354,7 @@ class TestIndexer_BasicInvertedIndex(unittest.TestCase):
 
     def test_create_index_no_stopwords_with_mwf(self):
         '''Test creating an index with no stopwords and minimum word frequency = 2'''
-        index = Indexer.create_index(self.index_type, 'toy_dataset.jsonl', self.tokenizer, set(), 2)
+        index = Indexer.create_index(self.index_type, 'data/toy_dataset.jsonl', self.tokenizer, set(), 2)
         stats = index.get_statistics()
         expected_stats = {'unique_token_count': 5,
                           'total_token_count': 28,
@@ -370,7 +370,7 @@ class TestIndexer_BasicInvertedIndex(unittest.TestCase):
         '''Test creating an index with stopwords and no minimum word frequency'''
 
         stopwords = set(['and', 'the'])
-        index = Indexer.create_index(self.index_type, 'toy_dataset.jsonl', self.tokenizer, stopwords, 0)
+        index = Indexer.create_index(self.index_type, 'data/toy_dataset.jsonl', self.tokenizer, stopwords, 0)
         stats = index.get_statistics()
         expected_stats = {'unique_token_count': 8,
                           'total_token_count': 28,
@@ -385,7 +385,7 @@ class TestIndexer_BasicInvertedIndex(unittest.TestCase):
         
         stopwords = set(['and', 'the'])
 
-        index = Indexer.create_index(self.index_type, 'toy_dataset.jsonl', self.tokenizer, stopwords, 2)
+        index = Indexer.create_index(self.index_type, 'data/toy_dataset.jsonl', self.tokenizer, stopwords, 2)
         
         stats = index.get_statistics()
         expected_stats = {'unique_token_count': 4,
@@ -405,7 +405,7 @@ class TestIndexer_BasicInvertedIndex(unittest.TestCase):
             3: ['Why did John Cena say Bing Chilling?']
         }
 
-        index = Indexer.create_index(self.index_type, 'toy_dataset.jsonl', self.tokenizer, stopwords, 2, doc_augment_dict=doc_augmentation_dict)
+        index = Indexer.create_index(self.index_type, 'data/toy_dataset.jsonl', self.tokenizer, stopwords, 2, doc_augment_dict=doc_augmentation_dict)
         
         stats = index.get_statistics()
         expected_stats = {'unique_token_count': 5,

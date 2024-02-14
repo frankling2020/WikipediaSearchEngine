@@ -25,8 +25,8 @@ class TestRankingMetrics(unittest.TestCase):
     def test_bm25_single_word_query(self):
 
         index = Indexer.create_index(
-            IndexType.InvertedIndex, 'data.jsonl', RegexTokenizer('\\w+'), set(), 0)
-        docid_to_word_counts = self.get_doc_counts('data.jsonl')
+            IndexType.InvertedIndex, 'data/data.jsonl', RegexTokenizer('\\w+'), set(), 0)
+        docid_to_word_counts = self.get_doc_counts('data/data.jsonl')
 
         docid_to_score = {
             1: -1.0478492565048942,
@@ -45,8 +45,8 @@ class TestRankingMetrics(unittest.TestCase):
     def test_bm25_multi_word_query(self):
 
         index = Indexer.create_index(
-            IndexType.InvertedIndex, 'data.jsonl', RegexTokenizer('\\w+'), set(), 0)
-        docid_to_word_counts = self.get_doc_counts('data.jsonl')
+            IndexType.InvertedIndex, 'data/data.jsonl', RegexTokenizer('\\w+'), set(), 0)
+        docid_to_word_counts = self.get_doc_counts('data/data.jsonl')
 
         docid_to_score = {
             4: 0.4096166920058151,
@@ -69,11 +69,11 @@ class TestRankingMetrics(unittest.TestCase):
     def test_personalized_bm25_single_word_query(self):
 
         index = Indexer.create_index(
-            IndexType.InvertedIndex, 'data.jsonl', RegexTokenizer('\\w+'), set(), 0)
-        docid_to_word_counts = self.get_doc_counts('data.jsonl')
+            IndexType.InvertedIndex, 'data/data.jsonl', RegexTokenizer('\\w+'), set(), 0)
+        docid_to_word_counts = self.get_doc_counts('data/data.jsonl')
 
         index_relevant = Indexer.create_index(
-            IndexType.InvertedIndex, 'data_relevant.jsonl', RegexTokenizer('\\w+'), set(), 0)        
+            IndexType.InvertedIndex, 'data/data_relevant.jsonl', RegexTokenizer('\\w+'), set(), 0)        
 
         docid_to_score = {
             1: 1.8559964456477376,
@@ -92,11 +92,11 @@ class TestRankingMetrics(unittest.TestCase):
     def test_personalized_bm25_multi_word_query(self):
 
         index = Indexer.create_index(
-            IndexType.InvertedIndex, 'data.jsonl', RegexTokenizer('\\w+'), set(), 0)
-        docid_to_word_counts = self.get_doc_counts('data.jsonl')
+            IndexType.InvertedIndex, 'data/data.jsonl', RegexTokenizer('\\w+'), set(), 0)
+        docid_to_word_counts = self.get_doc_counts('data/data.jsonl')
 
         index_relevant = Indexer.create_index(
-            IndexType.InvertedIndex, 'data_relevant.jsonl', RegexTokenizer('\\w+'), set(), 0)        
+            IndexType.InvertedIndex, 'data/data_relevant.jsonl', RegexTokenizer('\\w+'), set(), 0)        
 
         docid_to_score = {
             4: 3.555748654844854,
@@ -119,8 +119,8 @@ class TestRankingMetrics(unittest.TestCase):
     def test_tf_idf_single_word_query(self):
 
         index = Indexer.create_index(
-            IndexType.InvertedIndex, 'data.jsonl', RegexTokenizer('\\w+'), set(), 0)
-        docid_to_word_counts = self.get_doc_counts('data.jsonl')
+            IndexType.InvertedIndex, 'data/data.jsonl', RegexTokenizer('\\w+'), set(), 0)
+        docid_to_word_counts = self.get_doc_counts('data/data.jsonl')
 
         docid_to_score = {
             1: 0.8478185040135232,
@@ -141,8 +141,8 @@ class TestRankingMetrics(unittest.TestCase):
     def test_tf_idf_multi_word_query(self):
 
         index = Indexer.create_index(
-            IndexType.InvertedIndex, 'data.jsonl', RegexTokenizer('\\w+'), set(), 0)
-        docid_to_word_counts = self.get_doc_counts('data.jsonl')
+            IndexType.InvertedIndex, 'data/data.jsonl', RegexTokenizer('\\w+'), set(), 0)
+        docid_to_word_counts = self.get_doc_counts('data/data.jsonl')
 
         docid_to_score = {
             4: 3.714579061130085,
@@ -164,8 +164,8 @@ class TestRankingMetrics(unittest.TestCase):
     def test_pivoted_normalization_single_word_query(self):
 
         index = Indexer.create_index(
-            IndexType.InvertedIndex, 'data.jsonl', RegexTokenizer('\\w+'), set(), 0)
-        docid_to_word_counts = self.get_doc_counts('data.jsonl')
+            IndexType.InvertedIndex, 'data/data.jsonl', RegexTokenizer('\\w+'), set(), 0)
+        docid_to_word_counts = self.get_doc_counts('data/data.jsonl')
 
         docid_to_score = {
             5: 0.4147422370958343,
@@ -186,8 +186,8 @@ class TestRankingMetrics(unittest.TestCase):
     def test_pivoted_normalization_multi_word_query(self):
 
         index = Indexer.create_index(
-            IndexType.InvertedIndex, 'data.jsonl', RegexTokenizer('\\w+'), set(), 0)
-        docid_to_word_counts = self.get_doc_counts('data.jsonl')
+            IndexType.InvertedIndex, 'data/data.jsonl', RegexTokenizer('\\w+'), set(), 0)
+        docid_to_word_counts = self.get_doc_counts('data/data.jsonl')
 
         docid_to_score = {
             4: 3.191131756539232,
@@ -209,8 +209,8 @@ class TestRankingMetrics(unittest.TestCase):
     def test_word_count_cosine_similarity_single_word_query(self):
 
         index = Indexer.create_index(
-            IndexType.InvertedIndex, 'data.jsonl', RegexTokenizer('\\w+'), set(), 0)
-        docid_to_word_counts = self.get_doc_counts('data.jsonl')
+            IndexType.InvertedIndex, 'data/data.jsonl', RegexTokenizer('\\w+'), set(), 0)
+        docid_to_word_counts = self.get_doc_counts('data/data.jsonl')
 
         docid_to_score = {
             4: 1,
@@ -231,8 +231,8 @@ class TestRankingMetrics(unittest.TestCase):
     def test_word_count_cosine_similarity_multi_word_query(self):
 
         index = Indexer.create_index(
-            IndexType.InvertedIndex, 'data.jsonl', RegexTokenizer('\\w+'), set(), 0)
-        docid_to_word_counts = self.get_doc_counts('data.jsonl')
+            IndexType.InvertedIndex, 'data/data.jsonl', RegexTokenizer('\\w+'), set(), 0)
+        docid_to_word_counts = self.get_doc_counts('data/data.jsonl')
 
         docid_to_score = {
             4: 3,
@@ -254,8 +254,8 @@ class TestRankingMetrics(unittest.TestCase):
     def test_dirichlet_lm_single_word_query(self):
 
         index = Indexer.create_index(
-            IndexType.InvertedIndex, 'data.jsonl', RegexTokenizer('\\w+'), set(), 0)
-        docid_to_word_counts = self.get_doc_counts('data.jsonl')
+            IndexType.InvertedIndex, 'data/data.jsonl', RegexTokenizer('\\w+'), set(), 0)
+        docid_to_word_counts = self.get_doc_counts('data/data.jsonl')
 
         docid_to_score = {
             5: 0.00541207,
@@ -275,8 +275,8 @@ class TestRankingMetrics(unittest.TestCase):
     def test_dirichlet_lm_multi_word_query(self):
 
         index = Indexer.create_index(
-            IndexType.InvertedIndex, 'data.jsonl', RegexTokenizer('\\w+'), set(), 0)
-        docid_to_word_counts = self.get_doc_counts('data.jsonl')
+            IndexType.InvertedIndex, 'data/data.jsonl', RegexTokenizer('\\w+'), set(), 0)
+        docid_to_word_counts = self.get_doc_counts('data/data.jsonl')
 
         docid_to_score = {
             3: 0.03855246,
@@ -298,7 +298,7 @@ class TestRankingMetrics(unittest.TestCase):
 
     def test_cross_encoder_query(self):
         raw_text_dict = {}
-        with open('data.jsonl', 'r', encoding='utf-8') as file:
+        with open('data/data.jsonl', 'r', encoding='utf-8') as file:
             for line in file:
                 data = json.loads(line)
                 raw_text_dict[int(data['docid'])] = data['text'][:500]

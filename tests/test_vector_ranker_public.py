@@ -24,7 +24,7 @@ class TestVectorRanker(unittest.TestCase):
         self.transformer = SentenceTransformer(self.model_name)
         self.doc_embeddings = []
         self.doc_ids = []
-        with open('./toy_dataset.jsonl', 'r', encoding='utf-8') as file:
+        with open('./data/toy_dataset.jsonl', 'r', encoding='utf-8') as file:
             for line in file:
                 data = json.loads(line)
                 self.doc_embeddings.append(self.transformer.encode(data['text']))
@@ -118,7 +118,7 @@ class TestL2RVectorRanker(TestL2RRanker):
         self.transformer = SentenceTransformer(self.model_name)
         self.doc_embeddings = []
         self.doc_ids = []
-        with open('./data.jsonl','r', encoding='utf-8') as file:
+        with open('data/data.jsonl','r', encoding='utf-8') as file:
             for line in file:
                 data = json.loads(line)
                 self.doc_embeddings.append(self.transformer.encode(data['text']))

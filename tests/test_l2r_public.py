@@ -32,14 +32,14 @@ class TestL2RRanker(unittest.TestCase):
         self.stopwords = set()
         self.doc_category_info = dict()
 
-        with open('stopwords.txt', 'r', encoding='utf-8') as file:
+        with open('data/stopwords.txt', 'r', encoding='utf-8') as file:
             for stopword in file:
                 self.stopwords.add(stopword)
 
         self.main_index = Indexer.create_index(
-            IndexType.InvertedIndex, 'data.jsonl', self.preprocessor, self.stopwords, 0)
+            IndexType.InvertedIndex, 'data/data.jsonl', self.preprocessor, self.stopwords, 0)
         self.title_index = Indexer.create_index(
-            IndexType.InvertedIndex, 'data.jsonl', self.preprocessor, self.stopwords, 0, text_key='title')
+            IndexType.InvertedIndex, 'data/data.jsonl', self.preprocessor, self.stopwords, 0, text_key='title')
         self.network_features = {
             1: {'pagerank': 0.1, 'hub_score': 0.11, 'authority_score': 0.111},
             2: {'pagerank': 0.2, 'hub_score': 0.22, 'authority_score': 0.222},
@@ -49,7 +49,7 @@ class TestL2RRanker(unittest.TestCase):
         }
 
         raw_text_dict = {}
-        with open('data.jsonl', 'r', encoding='utf-8') as file:
+        with open('data/data.jsonl', 'r', encoding='utf-8') as file:
             for line in file:
                 data = json.loads(line)
                 raw_text_dict[int(data['docid'])] = data['text'][:500]
@@ -59,7 +59,7 @@ class TestL2RRanker(unittest.TestCase):
         self.recognized_categories = set(['Category 100', 'Category 11'])
 
         # Create a dictionary where each document is mapped to its list of categories.
-        with open("data.jsonl", 'r') as f:
+        with open("data/data.jsonl", 'r') as f:
             for line in f:
                 d = json.loads(line)
                 docid = d["docid"]
@@ -113,7 +113,7 @@ class TestL2RRanker(unittest.TestCase):
             # Expecting a ValueError since model is not trained yet
             l2r.predict([])
 
-        l2r.train('data-relevance.csv')
+        l2r.train('data/data-relevance.csv')
 
         for i in range(1, 20):
             temp_feature_lst = list(range(1, i + 1))
@@ -135,7 +135,7 @@ class TestL2RRanker(unittest.TestCase):
     def test_query_with_valid_single_term_query(self):
         l2r = L2RRanker(self.main_index, self.title_index, self.preprocessor,
                         self.stopwords, self.ranker, self.fe)
-        l2r.train('data-relevance.csv')
+        l2r.train('data/data-relevance.csv')
         result = l2r.query("chatbots")
         self.assertIsInstance(result, list)
         self.assertTrue(
@@ -144,7 +144,7 @@ class TestL2RRanker(unittest.TestCase):
     def test_query_with_valid_multi_term_query(self):
         l2r = L2RRanker(self.main_index, self.title_index, self.preprocessor,
                         self.stopwords, self.ranker, self.fe)
-        l2r.train('data-relevance.csv')
+        l2r.train('data/data-relevance.csv')
         result = l2r.query("AI ML")  # Assume this is a valid multi-term query
         self.assertIsInstance(result, list)
         self.assertTrue(
@@ -153,7 +153,7 @@ class TestL2RRanker(unittest.TestCase):
     def test_query_with_empty_query(self):
         l2r = L2RRanker(self.main_index, self.title_index, self.preprocessor,
                         self.stopwords, self.ranker, self.fe)
-        l2r.train('data-relevance.csv')
+        l2r.train('data/data-relevance.csv')
         result = l2r.query("")
         self.assertIsInstance(result, list)
         self.assertFalse(result, "Expected empty list of results for empty query")
@@ -161,7 +161,7 @@ class TestL2RRanker(unittest.TestCase):
     def test_query_with_noexistient_term(self):
         l2r = L2RRanker(self.main_index, self.title_index, self.preprocessor,
                         self.stopwords, self.ranker, self.fe)
-        l2r.train('data-relevance.csv')
+        l2r.train('data/data-relevance.csv')
         result = l2r.query("hello world")
         self.assertIsInstance(result, list)
         self.assertFalse(result, "Expected empty list of results for query 'no such term'")
@@ -233,14 +233,14 @@ class TestL2RRanker_MMR(unittest.TestCase):
         self.stopwords = set()
         self.doc_category_info = dict()
 
-        with open('stopwords.txt', 'r', encoding='utf-8') as file:
+        with open('data/stopwords.txt', 'r', encoding='utf-8') as file:
             for stopword in file:
                 self.stopwords.add(stopword)
 
         self.main_index = Indexer.create_index(
-            IndexType.InvertedIndex, 'data.jsonl', self.preprocessor, self.stopwords, 0)
+            IndexType.InvertedIndex, 'data/data.jsonl', self.preprocessor, self.stopwords, 0)
         self.title_index = Indexer.create_index(
-            IndexType.InvertedIndex, 'data.jsonl', self.preprocessor, self.stopwords, 0, text_key='title')
+            IndexType.InvertedIndex, 'data/data.jsonl', self.preprocessor, self.stopwords, 0, text_key='title')
         self.network_features = {
             1: {'pagerank': 0.1, 'hub_score': 0.11, 'authority_score': 0.111},
             2: {'pagerank': 0.2, 'hub_score': 0.22, 'authority_score': 0.222},
@@ -252,7 +252,7 @@ class TestL2RRanker_MMR(unittest.TestCase):
         self.recognized_categories = set(['Category 100', 'Category 11'])
 
         # Create a dictionary where each document is mapped to its list of categories.
-        with open("data.jsonl", 'r') as f:
+        with open("data/data.jsonl", 'r') as f:
             for line in f:
                 d = json.loads(line)
                 docid = d["docid"]
@@ -262,7 +262,7 @@ class TestL2RRanker_MMR(unittest.TestCase):
         self.transformer = SentenceTransformer(self.model_name)
         self.doc_embeddings = []
         self.doc_ids = []
-        with open('data.jsonl', 'r', encoding='utf-8') as file:
+        with open('data/data.jsonl', 'r', encoding='utf-8') as file:
             for line in file:
                 data = json.loads(line)
                 self.doc_embeddings.append(
@@ -274,7 +274,7 @@ class TestL2RRanker_MMR(unittest.TestCase):
             self.model_name, self.doc_embeddings, self.doc_ids)
         
         raw_text_dict = {}
-        with open('data.jsonl', 'r', encoding='utf-8') as file:
+        with open('data/data.jsonl', 'r', encoding='utf-8') as file:
             for line in file:
                 data = json.loads(line)
                 raw_text_dict[int(data['docid'])] = data['text'][:500]
@@ -293,7 +293,7 @@ class TestL2RRanker_MMR(unittest.TestCase):
     def test_query_with_lambda_03(self):
         l2r = L2RRanker(self.main_index, self.title_index, self.preprocessor,
                         self.stopwords, self.ranker, self.fe)
-        l2r.train('data-relevance.csv')
+        l2r.train('data/data-relevance.csv')
         result = l2r.query("AI ML", mmr_lambda=0.3)  # Assume this is a valid multi-term query
         self.assertIsInstance(result, list)
         self.assertTrue(
@@ -302,7 +302,7 @@ class TestL2RRanker_MMR(unittest.TestCase):
     def test_query_with_lambda_05(self):
         l2r = L2RRanker(self.main_index, self.title_index, self.preprocessor,
                         self.stopwords, self.ranker, self.fe)
-        l2r.train('data-relevance.csv')
+        l2r.train('data/data-relevance.csv')
         result = l2r.query("AI ML", mmr_lambda=0.5)  # Assume this is a valid multi-term query
         self.assertIsInstance(result, list)
         self.assertTrue(
@@ -311,7 +311,7 @@ class TestL2RRanker_MMR(unittest.TestCase):
     def test_query_with_lambda_07(self):
         l2r = L2RRanker(self.main_index, self.title_index, self.preprocessor,
                         self.stopwords, self.ranker, self.fe)
-        l2r.train('data-relevance.csv')
+        l2r.train('data/data-relevance.csv')
         result = l2r.query("AI ML", mmr_lambda=0.7)  # Assume this is a valid multi-term query
         self.assertIsInstance(result, list)
         self.assertTrue(
@@ -320,7 +320,7 @@ class TestL2RRanker_MMR(unittest.TestCase):
     def test_query_with_lambda_09(self):
         l2r = L2RRanker(self.main_index, self.title_index, self.preprocessor,
                         self.stopwords, self.ranker, self.fe)
-        l2r.train('data-relevance.csv')
+        l2r.train('data/data-relevance.csv')
         result = l2r.query("AI ML", mmr_lambda=0.9)  # Assume this is a valid multi-term query
         self.assertIsInstance(result, list)
         self.assertTrue(
@@ -329,7 +329,7 @@ class TestL2RRanker_MMR(unittest.TestCase):
     def test_query_with_mmr_threshold_large(self):
         l2r = L2RRanker(self.main_index, self.title_index, self.preprocessor,
                         self.stopwords, self.ranker, self.fe)       
-        l2r.train('data-relevance.csv') 
+        l2r.train('data/data-relevance.csv') 
         result = l2r.query("AI ML", mmr_threshold=len(self.doc_ids) + 1)
         self.assertIsInstance(result, list)
         self.assertTrue(
@@ -338,7 +338,7 @@ class TestL2RRanker_MMR(unittest.TestCase):
     def test_query_with_mmr_zero(self):
         l2r = L2RRanker(self.main_index, self.title_index, self.preprocessor,
                         self.stopwords, self.ranker, self.fe)       
-        l2r.train('data-relevance.csv') 
+        l2r.train('data/data-relevance.csv') 
         result1 = l2r.query("AI ML", mmr_threshold=0)
         result2 = l2r.query("AI ML", mmr_lambda=1)
         self.assertIsInstance(result1, list)
@@ -347,7 +347,7 @@ class TestL2RRanker_MMR(unittest.TestCase):
     def test_query_with_mmr_no_valid_query(self):
         l2r = L2RRanker(self.main_index, self.title_index, self.preprocessor,
                         self.stopwords, self.ranker, self.fe)       
-        l2r.train('data-relevance.csv') 
+        l2r.train('data/data-relevance.csv') 
         result = l2r.query("spring summer", mmr_threshold=len(self.doc_ids) + 1)
         self.assertIsInstance(result, list)
         self.assertFalse(result, "Expected empty list of results for query 'spring summer'")
@@ -360,12 +360,12 @@ class TestL2RFeatureExtractor(unittest.TestCase):
         self.stopwords = set()
         self.doc_category_info = dict()
 
-        with open('stopwords.txt', 'r', encoding='utf-8') as file:
+        with open('data/stopwords.txt', 'r', encoding='utf-8') as file:
             for stopword in file:
                 self.stopwords.add(stopword)
 
         raw_text_dict = {}
-        with open('data.jsonl', 'r', encoding='utf-8') as file:
+        with open('data/data.jsonl', 'r', encoding='utf-8') as file:
             for line in file:
                 data = json.loads(line)
                 raw_text_dict[int(data['docid'])] = data['text'][:500]
@@ -373,9 +373,9 @@ class TestL2RFeatureExtractor(unittest.TestCase):
         self.ce_scorer = CrossEncoderScorer(raw_text_dict)
 
         self.main_index = Indexer.create_index(
-            IndexType.InvertedIndex, 'data.jsonl', self.preprocessor, self.stopwords, 0)
+            IndexType.InvertedIndex, 'data/data.jsonl', self.preprocessor, self.stopwords, 0)
         self.title_index = Indexer.create_index(
-            IndexType.InvertedIndex, 'data.jsonl', self.preprocessor, self.stopwords, 0, text_key='title')
+            IndexType.InvertedIndex, 'data/data.jsonl', self.preprocessor, self.stopwords, 0, text_key='title')
         self.network_features = {
             1: {
                 'pagerank': 0.1,
@@ -407,7 +407,7 @@ class TestL2RFeatureExtractor(unittest.TestCase):
         self.recognized_categories = set(['Category 100', 'Category 11'])
 
         # Create a dictionary where each document is mapped to its list of categories.
-        with open("data.jsonl", 'r') as f:
+        with open("data/data.jsonl", 'r') as f:
             for line in f:
                 d = json.loads(line)
                 docid = d["docid"]
@@ -446,7 +446,7 @@ class TestL2RFeatureExtractor(unittest.TestCase):
 
     def test_get_tf(self):
 
-        docid_to_word_counts = self.get_doc_counts('data.jsonl')
+        docid_to_word_counts = self.get_doc_counts('data/data.jsonl')
 
         fe = L2RFeatureExtractor(self.main_index,
                                  self.title_index,
@@ -469,7 +469,7 @@ class TestL2RFeatureExtractor(unittest.TestCase):
 
     def test_get_tfidf(self):
 
-        docid_to_word_counts = self.get_doc_counts('data.jsonl')
+        docid_to_word_counts = self.get_doc_counts('data/data.jsonl')
 
         fe = L2RFeatureExtractor(self.main_index,
                                  self.title_index,
@@ -492,7 +492,7 @@ class TestL2RFeatureExtractor(unittest.TestCase):
                                    msg=f"Expected tf-idf={tf_idf} for docid {docid}, but got {est_tf_idf}")
 
     def test_get_BM25_score(self):
-        docid_to_word_counts = self.get_doc_counts('data.jsonl')
+        docid_to_word_counts = self.get_doc_counts('data/data.jsonl')
 
         fe = L2RFeatureExtractor(self.main_index,
                                  self.title_index,
@@ -515,7 +515,7 @@ class TestL2RFeatureExtractor(unittest.TestCase):
 
     def test_get_pivoted_normalization_score(self):
 
-        docid_to_word_counts = self.get_doc_counts('data.jsonl')
+        docid_to_word_counts = self.get_doc_counts('data/data.jsonl')
 
         fe = L2RFeatureExtractor(self.main_index,
                                  self.title_index,

@@ -10,8 +10,8 @@
 #     def convertFiles(self):
 #         if not os.path.isfile('multi_word_expressions.txt'):
 #             shutil.copy('multi_word_expressions_performance.txt', 'multi_word_expressions.txt')
-#         if not os.path.isfile('stopwords.txt'):
-#             shutil.copy('stopwords_performance.txt', 'stopwords.txt')
+#         if not os.path.isfile('data/stopwords.txt'):
+#             shutil.copy('stopwords_performance.txt', 'data/stopwords.txt')
 
 #     def setUp(self):
 #             self.index_name = 'performance_index'
@@ -20,14 +20,14 @@
 #             self.convertFiles()
     
 #     def tearDown(self) -> None:
-#         os.remove('stopwords.txt')
+#         os.remove('data/stopwords.txt')
 #         os.remove('multi_word_expressions.txt')
 
 #     def test_create_index_and_search_multiple_times(self):
 #         preprocessor = SplitTokenizer(file_path='multi_word_expressions.txt')
 #         LOOP_NUM = 15
 #         index = Indexer.create_index(
-#             self.index_name, IndexType.InvertedIndex, './performance_data.jsonl', preprocessor, True, 4)
+#             self.index_name, IndexType.InvertedIndex, './performance_data/data.jsonl', preprocessor, True, 4)
 #         for _ in range(LOOP_NUM):
 #             ranker1 = Ranker(index, preprocessor, True, WordCountCosineSimilarity)
 #             ranker2 = Ranker(index, preprocessor, True, DirichletLM)
